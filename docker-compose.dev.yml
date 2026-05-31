@@ -1,0 +1,33 @@
+# EchoSense - Development Docker Compose Override
+version: '3.8'
+
+services:
+  # Frontend Development Mode
+  frontend-dev:
+    build:
+      context: ./echosense-frontend
+      dockerfile: Dockerfile.dev
+    container_name: echosense-frontend-dev
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000/api
+      - VITE_APP_NAME=EchoSense Dev
+      - VITE_NODE_ENV=development
+    volumes:
+      - ./echosense-frontend:/app
+      - /app/node_modules
+    networks:
+      - echosense-network
+    restart: unless-stopped
+    command: npm run dev -- --host 0.0.0.0
+
+  # Backend remains the same for development
+  backend:
+    environment:
+      - NODE_ENV=development
+      - CORS_ORIGIN=http://localhost:5173
+
+networks:
+  echosense-network:
+    external: false

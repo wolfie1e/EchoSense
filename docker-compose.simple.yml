@@ -1,0 +1,103 @@
+# EchoSense - Simplified Docker Compose Configuration
+version: '3.8'
+
+services:
+  # Frontend - React Application
+  frontend:
+    build:
+      context: ./echosense-frontend
+      dockerfile: Dockerfile
+      target: production
+    container_name: echosense-frontend
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000/api
+      - VITE_APP_NAME=EchoSense
+      - VITE_APP_VERSION=1.0.0
+      - VITE_NODE_ENV=production
+    depends_on:
+      - backend
+    networks:
+      - echosense-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Backend API
+  backend:
+    image: node:18-alpine
+    container_name: echosense-backend
+    working_dir: /app
+    ports:
+      - "8000:8000"
+    environment:
+      - NODE_ENV=development
+      - PORT=8000
+      - CORS_ORIGIN=http://localhost:3000
+    volumes:
+      - ./echosense-backend:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm start"
+    networks:
+      - echosense-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "sh", "-c", "nc -z localhost 8000 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Database (Optional)
+  database:
+    image: postgres:15-alpine
+    container_name: echosense-db
+    environment:
+      - POSTGRES_DB=echosense
+      - POSTGRES_USER=echosense
+      - POSTGRES_PASSWORD=echosense_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - echosense-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U echosense"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis (Optional)
+  redis:
+    image: redis:7-alpine
+    container_name: echosense-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - echosense-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  echosense-network:
+    driver: bridge
+    name: echosense-network
+
+volumes:
+  postgres_data:
+    name: echosense_postgres_data
+  redis_data:
+    name: echosense_redis_data
